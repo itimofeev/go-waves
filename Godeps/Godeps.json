@@ -1,0 +1,59 @@
+{
+	"ImportPath": "github.com/itimofeev/wavestx",
+	"GoVersion": "go1.9",
+	"GodepVersion": "v79",
+	"Packages": [
+		"./..."
+	],
+	"Deps": [
+		{
+			"ImportPath": "github.com/btcsuite/btcd/btcec",
+			"Comment": "BTCD_0_12_0_BETA-599-g4803a82",
+			"Rev": "4803a8291c92a1d2d41041b942a9a9e37deab065"
+		},
+		{
+			"ImportPath": "github.com/btcsuite/btcutil/base58",
+			"Comment": "BTCUTIL_0_5_0-32-g501929d",
+			"Rev": "501929d3d046174c3d39f0ea54ece471aa17238c"
+		},
+		{
+			"ImportPath": "github.com/ethereum/go-ethereum/common",
+			"Comment": "v1.7.1-11-g7a045af0",
+			"Rev": "7a045af05b93c323f63c7af41423ded701ce3890"
+		},
+		{
+			"ImportPath": "github.com/ethereum/go-ethereum/common/hexutil",
+			"Comment": "v1.7.1-11-g7a045af0",
+			"Rev": "7a045af05b93c323f63c7af41423ded701ce3890"
+		},
+		{
+			"ImportPath": "github.com/ethereum/go-ethereum/common/math",
+			"Comment": "v1.7.1-11-g7a045af0",
+			"Rev": "7a045af05b93c323f63c7af41423ded701ce3890"
+		},
+		{
+			"ImportPath": "github.com/ethereum/go-ethereum/crypto",
+			"Comment": "v1.7.1-11-g7a045af0",
+			"Rev": "7a045af05b93c323f63c7af41423ded701ce3890"
+		},
+		{
+			"ImportPath": "github.com/ethereum/go-ethereum/crypto/secp256k1",
+			"Comment": "v1.7.1-11-g7a045af0",
+			"Rev": "7a045af05b93c323f63c7af41423ded701ce3890"
+		},
+		{
+			"ImportPath": "github.com/ethereum/go-ethereum/crypto/sha3",
+			"Comment": "v1.7.1-11-g7a045af0",
+			"Rev": "7a045af05b93c323f63c7af41423ded701ce3890"
+		},
+		{
+			"ImportPath": "github.com/ethereum/go-ethereum/rlp",
+			"Comment": "v1.7.1-11-g7a045af0",
+			"Rev": "7a045af05b93c323f63c7af41423ded701ce3890"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/blake2b",
+			"Rev": "9419663f5a44be8b34ca85f08abc5fe1be11f8a3"
+		}
+	]
+}
