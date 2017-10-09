@@ -2,16 +2,24 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/wsddn/go-ecdh"
 	"golang.org/x/crypto/blake2b"
-	"crypto/sha256"
 )
 
 const seedString = "manage manual recall harvest series desert melt police rose hollow moral pledge kitten position add"
+
+type ChainID byte
+
+//noinspection GoUnusedConst
+const (
+	ChainIDMain = 'W'
+	ChainIDTest = 'T'
+)
 
 func main() {
 	seedBytes := []byte(seedString)
@@ -25,12 +33,29 @@ func main() {
 	hashedAccountSeed := sha256.Sum256(accountSeed)
 	fmt.Println("hashed account seed ", encodeBase58(hashedAccountSeed[:]))
 
-	g := ecdh.NewCurve25519ECDH()
-	priv, pub, err := g.GenerateKey(bytes.NewReader(hashedAccountSeed[:]))
-	must(err)
+	priv, pub := generateCurve25519Keys(hashedAccountSeed[:])
+	fmt.Println("Private key", encodeBase58(priv))
+	fmt.Println("Public key", encodeBase58(pub))
 
-	fmt.Println("Private key", encodeBase58(g.Marshal(priv)))
-	fmt.Println("Public key", encodeBase58(g.Marshal((pub))))
+	addr := generateAddr(pub, ChainIDMain)
+	fmt.Println("Address", encodeBase58(addr))
+
+}
+
+func generateAddr(pub []byte, chainID ChainID) []byte {
+	buf := bytes.NewBuffer(make([]byte, 0, 26))
+	version := byte(1)
+	buf.WriteByte(version)
+	buf.WriteByte(byte(chainID))
+	buf.Write(secureHash(pub)[:20])
+
+	if len(buf.Bytes()) != 22 {
+		panic(len(buf.Bytes()))
+	}
+
+	buf.Write(secureHash(buf.Bytes())[:4])
+
+	return buf.Bytes()
 }
 
 func encodeBase58(src []byte) string {
@@ -45,8 +70,20 @@ func prependNonce(nonce uint32, seedBytes []byte) []byte {
 }
 
 func makeSeedHash(nonce uint32, seedBytes []byte) []byte {
-	sum := blake2b.Sum256(prependNonce(nonce, seedBytes))
+	return secureHash(prependNonce(nonce, seedBytes))
+}
+
+func secureHash(data []byte) []byte {
+	sum := blake2b.Sum256(data)
 	return crypto.Keccak256(sum[:])
+}
+
+func generateCurve25519Keys(accountSeed []byte) (priv []byte, pub []byte) {
+	g := ecdh.NewCurve25519ECDH()
+	privI, pubI, err := g.GenerateKey(bytes.NewReader(accountSeed))
+	must(err)
+
+	return g.Marshal(privI), g.Marshal(pubI)
 }
 
 func must(err error) {
