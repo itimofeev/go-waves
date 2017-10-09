@@ -52,7 +52,15 @@
 			"Rev": "7a045af05b93c323f63c7af41423ded701ce3890"
 		},
 		{
+			"ImportPath": "github.com/wsddn/go-ecdh",
+			"Rev": "48726bab92085232373de4ec5c51ce7b441c63a0"
+		},
+		{
 			"ImportPath": "golang.org/x/crypto/blake2b",
+			"Rev": "9419663f5a44be8b34ca85f08abc5fe1be11f8a3"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/curve25519",
 			"Rev": "9419663f5a44be8b34ca85f08abc5fe1be11f8a3"
 		}
 	]
