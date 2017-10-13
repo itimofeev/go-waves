@@ -21,7 +21,13 @@ const (
 	ChainIDTest = 'T'
 )
 
-func someFunc() {
+type Account struct {
+	Private string
+	Public  string
+	Address string
+}
+
+func GenerateAccount() *Account {
 	seedBytes := []byte(seedString)
 
 	fmt.Println("seed string in bas58", encodeBase58(seedBytes))
@@ -40,10 +46,11 @@ func someFunc() {
 	addr := generateAddr(pub, ChainIDMain)
 	fmt.Println("Address", encodeBase58(addr))
 
-	txBuf := bytes.Buffer{}
-
-	txBuf.WriteByte(byte(4)) // TX type = 4 (transfer)
-
+	return &Account{
+		Private: encodeBase58(priv),
+		Public:  encodeBase58(pub),
+		Address: encodeBase58(addr),
+	}
 }
 
 func generateAddr(pub []byte, chainID ChainID) []byte {
@@ -66,11 +73,33 @@ func encodeBase58(src []byte) string {
 	return base58.Encode(src)
 }
 
-func prependNonce(nonce uint32, seedBytes []byte) []byte {
-	buf := make([]byte, 4)
-	binary.LittleEndian.PutUint32(buf, nonce)
+func decodeBase58(src string) []byte {
+	return base58.Decode(src)
+}
 
-	return append(buf, seedBytes...)
+func prependNonce(nonce uint32, seedBytes []byte) []byte {
+	return append(uint32ToBytes(nonce), seedBytes...)
+}
+
+func uint32ToBytes(n uint32) []byte {
+	buf := make([]byte, 4)
+	binary.BigEndian.PutUint32(buf, n)
+
+	return buf
+}
+
+func uint16ToBytes(n uint16) []byte {
+	buf := make([]byte, 2)
+	binary.BigEndian.PutUint16(buf, n)
+
+	return buf
+}
+
+func uint64ToBytes(n uint64) []byte {
+	buf := make([]byte, 8)
+	binary.BigEndian.PutUint64(buf, n)
+
+	return buf
 }
 
 func makeSeedHash(nonce uint32, seedBytes []byte) []byte {

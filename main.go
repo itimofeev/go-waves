@@ -4,36 +4,113 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
+	"strings"
+	"time"
 )
 
+var client = http.DefaultClient
+
 func main() {
-	sendTx()
+	acc := GenerateAccount()
+	sendTx(acc)
 }
 
 type Tx struct {
+	Type            int    `json:"-"`
 	AssetID         string `json:"assetId"`
 	SenderPublicKey string `json:"senderPublicKey"`
 	Recipient       string `json:"recipient"`
-	Fee             int    `json:"fee"`
-	Amount          int    `json:"amount"`
+	Fee             uint64 `json:"fee"`
+	Amount          uint64 `json:"amount"`
 	Attachment      string `json:"attachment"`
-	Timestamp       int64  `json:"timestamp"`
+	Timestamp       uint64 `json:"timestamp"`
 	Signature       string `json:"signature"`
+	AmountAssetID   string `json:"amountAssetId"`
+	FeeAssetID      string `json:"feeAssetId"`
 }
 
-func sendTx() {
-	tx := Tx{
-		AssetID:         "E9yZC4cVhCDfbjFJCc9CqkAtkoFy5KaCe64iaxHM2adG",
-		SenderPublicKey: "CRxqEuxhdZBEHX42MU4FfyJxuHmbDBTaHMhM3Uki7pLw",
-		Recipient:       "3Mx2afTZ2KbRrLNbytyzTtXukZvqEB8SkW7",
-		Fee:             100000,
-		Amount:          5500000000,
-		Attachment:      "BJa6cfyGUmzBFTj3vvvaew",
-		Timestamp:       int64(1479222433704),
-		Signature:       "2TyN8pNS7mS9gfCbX2ktpkWVYckoAmRmDZzKH3K35DKs6sUoXHArzukV5hvveK9t79uzT3cA8CYZ9z3Utj6CnCEo",
+type SignResponse struct {
+	Message   string `json:"message"`
+	Signature string `json:"signature"`
+}
+
+func signMessage(message, privateKey string) string {
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://52.30.47.67:6869/utils/sign/%s", privateKey), strings.NewReader(message))
+	must(err)
+
+	resp, err := client.Do(req)
+	must(err)
+
+	defer resp.Body.Close()
+
+	httputil.DumpResponse(resp, true)
+
+	body, err := ioutil.ReadAll(resp.Body)
+	must(err)
+
+	signResponse := &SignResponse{}
+
+	err = json.Unmarshal(body, signResponse)
+	must(err)
+
+	return signResponse.Signature
+}
+
+func (t *Tx) TxData() string {
+	txBuf := &bytes.Buffer{}
+
+	txBuf.WriteByte(byte(t.Type))
+
+	txBuf.Write(decodeBase58(t.SenderPublicKey))
+
+	//Amount's asset flag (0-Waves, 1-Asset)
+	if len(t.AmountAssetID) > 0 {
+		txBuf.WriteByte(1)
+		txBuf.Write(decodeBase58(t.AmountAssetID))
+	} else {
+		txBuf.WriteByte(0)
 	}
+
+	// Fee's asset flag (0-Waves, 1-Asset)
+	if len(t.FeeAssetID) > 0 {
+		txBuf.WriteByte(1)
+		txBuf.Write(decodeBase58(t.FeeAssetID))
+	} else {
+		txBuf.WriteByte(0)
+	}
+
+	txBuf.Write(uint64ToBytes(t.Timestamp)) //Fee's asset flag (0-Waves, 1-Asset)
+
+	txBuf.Write(uint64ToBytes(t.Amount)) //Amount
+
+	txBuf.Write(uint64ToBytes(t.Fee)) //Fee
+
+	txBuf.Write(decodeBase58(t.Recipient)) //Recipient's address
+
+	txBuf.Write(uint16ToBytes(uint16(len(decodeBase58(t.Attachment)))))
+
+	txBuf.Write(decodeBase58(t.Attachment))
+
+	return encodeBase58(txBuf.Bytes()) //Timestamp
+}
+
+func sendTx(acc *Account) {
+	tx := Tx{
+		Type:            4,
+		//AssetID:         "E9yZC4cVhCDfbjFJCc9CqkAtkoFy5KaCe64iaxHM2adG",
+		//FeeAssetID:      "E9yZC4cVhCDfbjFJCc9CqkAtkoFy5KaCe64iaxHM2adG",
+		SenderPublicKey: acc.Public,
+		Recipient:       "3Mx2afTZ2KbRrLNbytyzTtXukZvqEB8SkW7",
+		Fee:             11111112,
+		Amount:          11111112,
+		Attachment:      encodeBase58([]byte{1, 2, 3, 4}),
+		Timestamp:       uint64(time.Now().UnixNano() / int64(time.Millisecond)),
+	}
+
+	tx.Signature = signMessage(tx.TxData(), acc.Private)
 
 	txData, err := json.Marshal(tx)
 	must(err)
@@ -41,8 +118,6 @@ func sendTx() {
 	req.Header.Set("api-key-hash", "BASE58APIKEYHASH")
 	req.Header.Set("Content-Type", "application/json")
 	must(err)
-
-	client := http.Client{}
 
 	resp, err := client.Do(req)
 	must(err)
