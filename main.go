@@ -2,92 +2,52 @@ package main
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/binary"
+	"encoding/json"
 	"fmt"
-	"github.com/btcsuite/btcutil/base58"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/wsddn/go-ecdh"
-	"golang.org/x/crypto/blake2b"
-)
-
-const seedString = "manage manual recall harvest series desert melt police rose hollow moral pledge kitten position add"
-
-type ChainID byte
-
-//noinspection GoUnusedConst
-const (
-	ChainIDMain = 'W'
-	ChainIDTest = 'T'
+	"net/http"
+	"net/http/httputil"
 )
 
 func main() {
-	seedBytes := []byte(seedString)
-
-	fmt.Println("seed string in bas58", encodeBase58(seedBytes))
-	fmt.Println("seed string with nonce", encodeBase58(prependNonce(0, seedBytes)))
-
-	accountSeed := makeSeedHash(0, seedBytes)
-	fmt.Println("account seed with nonce 0", encodeBase58(accountSeed))
-
-	hashedAccountSeed := sha256.Sum256(accountSeed)
-	fmt.Println("hashed account seed ", encodeBase58(hashedAccountSeed[:]))
-
-	priv, pub := generateCurve25519Keys(hashedAccountSeed[:])
-	fmt.Println("Private key", encodeBase58(priv))
-	fmt.Println("Public key", encodeBase58(pub))
-
-	addr := generateAddr(pub, ChainIDMain)
-	fmt.Println("Address", encodeBase58(addr))
-
+	sendTx()
 }
 
-func generateAddr(pub []byte, chainID ChainID) []byte {
-	buf := bytes.NewBuffer(make([]byte, 0, 26))
-	version := byte(1)
-	buf.WriteByte(version)
-	buf.WriteByte(byte(chainID))
-	buf.Write(secureHash(pub)[:20])
+type Tx struct {
+	AssetID         string `json:"assetId"`
+	SenderPublicKey string `json:"senderPublicKey"`
+	Recipient       string `json:"recipient"`
+	Fee             int    `json:"fee"`
+	Amount          int    `json:"amount"`
+	Attachment      string `json:"attachment"`
+	Timestamp       int64  `json:"timestamp"`
+	Signature       string `json:"signature"`
+}
 
-	if len(buf.Bytes()) != 22 {
-		panic(len(buf.Bytes()))
+func sendTx() {
+	tx := Tx{
+		AssetID:         "E9yZC4cVhCDfbjFJCc9CqkAtkoFy5KaCe64iaxHM2adG",
+		SenderPublicKey: "CRxqEuxhdZBEHX42MU4FfyJxuHmbDBTaHMhM3Uki7pLw",
+		Recipient:       "3Mx2afTZ2KbRrLNbytyzTtXukZvqEB8SkW7",
+		Fee:             100000,
+		Amount:          5500000000,
+		Attachment:      "BJa6cfyGUmzBFTj3vvvaew",
+		Timestamp:       int64(1479222433704),
+		Signature:       "2TyN8pNS7mS9gfCbX2ktpkWVYckoAmRmDZzKH3K35DKs6sUoXHArzukV5hvveK9t79uzT3cA8CYZ9z3Utj6CnCEo",
 	}
 
-	buf.Write(secureHash(buf.Bytes())[:4])
-
-	return buf.Bytes()
-}
-
-func encodeBase58(src []byte) string {
-	return base58.Encode(src)
-}
-
-func prependNonce(nonce uint32, seedBytes []byte) []byte {
-	buf := make([]byte, 4)
-	binary.LittleEndian.PutUint32(buf, nonce)
-
-	return append(buf, seedBytes...)
-}
-
-func makeSeedHash(nonce uint32, seedBytes []byte) []byte {
-	return secureHash(prependNonce(nonce, seedBytes))
-}
-
-func secureHash(data []byte) []byte {
-	sum := blake2b.Sum256(data)
-	return crypto.Keccak256(sum[:])
-}
-
-func generateCurve25519Keys(accountSeed []byte) (priv []byte, pub []byte) {
-	g := ecdh.NewCurve25519ECDH()
-	privI, pubI, err := g.GenerateKey(bytes.NewReader(accountSeed))
+	txData, err := json.Marshal(tx)
+	must(err)
+	req, err := http.NewRequest(http.MethodPost, "http://52.30.47.67:6869/assets/broadcast/transfer", bytes.NewReader(txData))
+	req.Header.Set("api-key-hash", "BASE58APIKEYHASH")
+	req.Header.Set("Content-Type", "application/json")
 	must(err)
 
-	return g.Marshal(privI), g.Marshal(pubI)
-}
+	client := http.Client{}
 
-func must(err error) {
-	if err != nil {
-		panic(err)
-	}
+	resp, err := client.Do(req)
+	must(err)
+
+	respDump, err := httputil.DumpResponse(resp, true)
+	must(err)
+	fmt.Println("!!!", string(respDump))
 }
