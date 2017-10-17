@@ -15,15 +15,15 @@ func TestName(t *testing.T) {
 		Amount:          1,
 		Fee:             1,
 		Recipient:       "3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8",
-		Attachment:      encodeBase58([]byte{1, 2, 3, 4}),
+		Attachment:      EncodeBase58([]byte{1, 2, 3, 4}),
 	}
 
 	wikiValue := "Ht7FtLJBrnukwWtywum4o1PbQSNyDWMgb4nXR5ZkV78krj9qVt17jz74XYSrKSTQe6wXuPdt3aCvmnF5hfjhnd1gyij36hN1zSDaiDg3TFi7c7RbXTHDDUbRgGajXci8PJB3iJM1tZvh8AL5wD4o4DCo1VJoKk2PUWX3cUydB7brxWGUxC6mPxKMdXefXwHeB4khwugbvcsPgk8F6YB"
 
 	//assert.Equal(t, wikiValue, tx.TxData())
 
-	original := decodeBase58(wikiValue)
-	my := decodeBase58(tx.TxData())
+	original := DecodeBase58(wikiValue)
+	my := DecodeBase58(tx.TxData())
 
 	assert.Equal(t, original[0:1], my[0:1], "TxType")
 	assert.Equal(t, original[1:33], my[1:33], "Sender")

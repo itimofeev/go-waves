@@ -53,10 +53,10 @@ func must(err error) {
 	}
 }
 
-func encodeBase58(src []byte) string {
+func EncodeBase58(src []byte) string {
 	return base58.Encode(src)
 }
 
-func decodeBase58(src string) []byte {
+func DecodeBase58(src string) []byte {
 	return base58.Decode(src)
 }

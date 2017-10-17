@@ -23,12 +23,12 @@ func (t *Tx) TxData() string {
 
 	txBuf.WriteByte(byte(t.Type))
 
-	txBuf.Write(decodeBase58(t.SenderPublicKey))
+	txBuf.Write(DecodeBase58(t.SenderPublicKey))
 
 	//Amount's asset flag (0-Waves, 1-Asset)
 	if len(t.AmountAssetID) > 0 {
 		txBuf.WriteByte(1)
-		txBuf.Write(decodeBase58(t.AmountAssetID))
+		txBuf.Write(DecodeBase58(t.AmountAssetID))
 	} else {
 		txBuf.WriteByte(0)
 	}
@@ -36,7 +36,7 @@ func (t *Tx) TxData() string {
 	// Fee's asset flag (0-Waves, 1-Asset)
 	if len(t.FeeAssetID) > 0 {
 		txBuf.WriteByte(1)
-		txBuf.Write(decodeBase58(t.FeeAssetID))
+		txBuf.Write(DecodeBase58(t.FeeAssetID))
 	} else {
 		txBuf.WriteByte(0)
 	}
@@ -47,12 +47,12 @@ func (t *Tx) TxData() string {
 
 	txBuf.Write(uint64ToBytes(t.Fee)) //Fee
 
-	txBuf.Write(decodeBase58(t.Recipient)) //Recipient's address
+	txBuf.Write(DecodeBase58(t.Recipient)) //Recipient's address
 
-	txBuf.Write(uint16ToBytes(uint16(len(decodeBase58(t.Attachment)))))
+	txBuf.Write(uint16ToBytes(uint16(len(DecodeBase58(t.Attachment)))))
 
-	txBuf.Write(decodeBase58(t.Attachment))
+	txBuf.Write(DecodeBase58(t.Attachment))
 
-	return encodeBase58(txBuf.Bytes()) //Timestamp
+	return EncodeBase58(txBuf.Bytes()) //Timestamp
 }
 

@@ -89,7 +89,7 @@ func (c *wavesClient) SendTransferTx(from *Account, toAddress string, amount, fe
 		Recipient:       toAddress,
 		Fee:             uint64(amount) * wavesCoef,
 		Amount:          uint64(fee) * wavesCoef,
-		Attachment:      encodeBase58([]byte{1, 2, 3, 4}),
+		Attachment:      EncodeBase58([]byte{1, 2, 3, 4}),
 		Timestamp:       uint64(time.Now().UnixNano() / int64(time.Millisecond)),
 	}
 

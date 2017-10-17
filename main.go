@@ -13,6 +13,8 @@ func main() {
 	account := client.GenerateAccount(seedString)
 	litter.Dump(account)
 
+
+
 	tx, _ := client.SendTransferTx(account, "3Mx2afTZ2KbRrLNbytyzTtXukZvqEB8SkW7", 1, 1)
 	litter.Dump(tx)
 }
