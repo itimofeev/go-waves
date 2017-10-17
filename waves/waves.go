@@ -3,6 +3,7 @@ package waves
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -13,82 +14,30 @@ import (
 
 var client = http.DefaultClient
 
-func NewClient(id ChainID, nodeAddr string) Client {
+func NewClient(id ChainID, nodeAddr, apiKeyHash string) Client {
 	return &wavesClient{
-		ChainID: id,
-		NodeAddr:nodeAddr,
+		ChainID:    id,
+		NodeAddr:   nodeAddr,
+		APIKeyHash: apiKeyHash,
 	}
 }
 
 type Client interface {
 	GenerateAccount(seedString string) *Account
+	SendTransferTx(from *Account, toAddress string, amount, fee int) (*TxResponse, error)
 }
 
 type wavesClient struct {
-	ChainID ChainID
-	NodeAddr string
-	debug bool
+	ChainID    ChainID
+	NodeAddr   string
+	APIKeyHash string
+	debug      bool
 }
 
-type Tx struct {
-	Type            int    `json:"-"`
-	AssetID         string `json:"assetId"`
-	SenderPublicKey string `json:"senderPublicKey"`
-	Recipient       string `json:"recipient"`
-	Fee             uint64 `json:"fee"`
-	Amount          uint64 `json:"amount"`
-	Attachment      string `json:"attachment"`
-	Timestamp       uint64 `json:"timestamp"`
-	Signature       string `json:"signature"`
-	AmountAssetID   string `json:"amountAssetId"`
-	FeeAssetID      string `json:"feeAssetId"`
-}
-
-func (t *Tx) TxData() string {
-	txBuf := &bytes.Buffer{}
-
-	txBuf.WriteByte(byte(t.Type))
-
-	txBuf.Write(decodeBase58(t.SenderPublicKey))
-
-	//Amount's asset flag (0-Waves, 1-Asset)
-	if len(t.AmountAssetID) > 0 {
-		txBuf.WriteByte(1)
-		txBuf.Write(decodeBase58(t.AmountAssetID))
-	} else {
-		txBuf.WriteByte(0)
-	}
-
-	// Fee's asset flag (0-Waves, 1-Asset)
-	if len(t.FeeAssetID) > 0 {
-		txBuf.WriteByte(1)
-		txBuf.Write(decodeBase58(t.FeeAssetID))
-	} else {
-		txBuf.WriteByte(0)
-	}
-
-	txBuf.Write(uint64ToBytes(t.Timestamp)) //Fee's asset flag (0-Waves, 1-Asset)
-
-	txBuf.Write(uint64ToBytes(t.Amount)) //Amount
-
-	txBuf.Write(uint64ToBytes(t.Fee)) //Fee
-
-	txBuf.Write(decodeBase58(t.Recipient)) //Recipient's address
-
-	txBuf.Write(uint16ToBytes(uint16(len(decodeBase58(t.Attachment)))))
-
-	txBuf.Write(decodeBase58(t.Attachment))
-
-	return encodeBase58(txBuf.Bytes()) //Timestamp
-}
-
-type SignResponse struct {
-	Message   string `json:"message"`
-	Signature string `json:"signature"`
-}
-
-func signMessage(message, privateKey string) string {
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://52.30.47.67:6869/utils/sign/%s", privateKey), strings.NewReader(message))
+// Golang doesn't have method to sign message by Curve25519 algorithm
+// Use node api to sign for now as a workaround
+func (c *wavesClient) signMessage(message, privateKey string) string {
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://%s/utils/sign/%s", c.NodeAddr, privateKey), strings.NewReader(message))
 	must(err)
 
 	resp, err := client.Do(req)
@@ -101,6 +50,10 @@ func signMessage(message, privateKey string) string {
 	body, err := ioutil.ReadAll(resp.Body)
 	must(err)
 
+	type SignResponse struct {
+		Message   string `json:"message"`
+		Signature string `json:"signature"`
+	}
 	signResponse := &SignResponse{}
 
 	err = json.Unmarshal(body, signResponse)
@@ -111,32 +64,62 @@ func signMessage(message, privateKey string) string {
 
 const wavesCoef = 100000000
 
-func sendTx(acc *Account) {
+type TxResponse struct {
+	Type int `json:"type"`
+	ID string `json:"id"`
+	Sender string `json:"sender"`
+	SenderPublicKey string `json:"senderPublicKey"`
+	Fee uint64 `json:"fee"`
+	Timestamp int64 `json:"timestamp"`
+	Signature string `json:"signature"`
+	Recipient string `json:"recipient"`
+	AssetID string `json:"assetId"`
+	Amount uint64 `json:"amount"`
+	FeeAssetID string `json:"feeAsset"`
+	Attachment string `json:"attachment"`
+}
+
+func (c *wavesClient) SendTransferTx(from *Account, toAddress string, amount, fee int) (*TxResponse, error) {
+	if amount <= 0 || fee <= 0 {
+		return nil, errors.New("amount and fee must be positive")
+	}
 	tx := Tx{
-		Type: 4,
-		//AssetID:         "E9yZC4cVhCDfbjFJCc9CqkAtkoFy5KaCe64iaxHM2adG",
-		//FeeAssetID:      "E9yZC4cVhCDfbjFJCc9CqkAtkoFy5KaCe64iaxHM2adG",
-		SenderPublicKey: acc.Public,
-		Recipient:       "3Mx2afTZ2KbRrLNbytyzTtXukZvqEB8SkW7",
-		Fee:             1 * wavesCoef,
-		Amount:          1 * wavesCoef,
+		Type:            4,
+		SenderPublicKey: from.Public,
+		Recipient:       toAddress,
+		Fee:             uint64(amount) * wavesCoef,
+		Amount:          uint64(fee) * wavesCoef,
 		Attachment:      encodeBase58([]byte{1, 2, 3, 4}),
 		Timestamp:       uint64(time.Now().UnixNano() / int64(time.Millisecond)),
 	}
 
-	tx.Signature = signMessage(tx.TxData(), acc.Private)
+	tx.Signature = c.signMessage(tx.TxData(), from.Private)
 
 	txData, err := json.Marshal(tx)
 	must(err)
-	req, err := http.NewRequest(http.MethodPost, "http://52.30.47.67:6869/assets/broadcast/transfer", bytes.NewReader(txData))
-	req.Header.Set("api-key-hash", "BASE58APIKEYHASH")
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://%s/assets/broadcast/transfer", c.NodeAddr), bytes.NewReader(txData))
+	req.Header.Set("api-key-hash", c.APIKeyHash)
 	req.Header.Set("Content-Type", "application/json")
 	must(err)
 
 	resp, err := client.Do(req)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
 	must(err)
 
-	respDump, err := httputil.DumpResponse(resp, true)
+	if c.debug {
+		respDump, err := httputil.DumpResponse(resp, true)
+		must(err)
+		fmt.Println("!!!", string(respDump))
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
 	must(err)
-	fmt.Println("!!!", string(respDump))
+
+	txResponse := &TxResponse{}
+	err = json.Unmarshal(body, txResponse)
+	must(err)
+
+	return txResponse, nil
 }
