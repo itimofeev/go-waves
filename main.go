@@ -9,12 +9,14 @@ const seedString = "unaware club online glance evil prize piano oil beyond oak s
 const nodeAddr = "52.30.47.67:6869"
 
 func main() {
+	doTask()
+}
+
+func doTask() {
 	client := waves.NewClient(waves.ChainIDTest, nodeAddr, "BASE58APIKEYHASH")
 	account := client.GenerateAccount(seedString)
 	litter.Dump(account)
 
-
-
-	tx, _ := client.SendTransferTx(account, "3Mx2afTZ2KbRrLNbytyzTtXukZvqEB8SkW7", 1, 1)
+	tx, _ := client.SendTransferTx(account, "3Mx2afTZ2KbRrLNbytyzTtXukZvqEB8SkW7", 1, 1, waves.DecodeBase58("Timofeev"))
 	litter.Dump(tx)
 }

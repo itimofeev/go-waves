@@ -24,7 +24,7 @@ func NewClient(id ChainID, nodeAddr, apiKeyHash string) Client {
 
 type Client interface {
 	GenerateAccount(seedString string) *Account
-	SendTransferTx(from *Account, toAddress string, amount, fee int) (*TxResponse, error)
+	SendTransferTx(from *Account, toAddress string, amount, fee int, attach []byte) (*TxResponse, error)
 }
 
 type wavesClient struct {
@@ -79,7 +79,7 @@ type TxResponse struct {
 	Attachment string `json:"attachment"`
 }
 
-func (c *wavesClient) SendTransferTx(from *Account, toAddress string, amount, fee int) (*TxResponse, error) {
+func (c *wavesClient) SendTransferTx(from *Account, toAddress string, amount, fee int, attach []byte) (*TxResponse, error) {
 	if amount <= 0 || fee <= 0 {
 		return nil, errors.New("amount and fee must be positive")
 	}
@@ -89,7 +89,7 @@ func (c *wavesClient) SendTransferTx(from *Account, toAddress string, amount, fe
 		Recipient:       toAddress,
 		Fee:             uint64(amount) * wavesCoef,
 		Amount:          uint64(fee) * wavesCoef,
-		Attachment:      EncodeBase58([]byte{1, 2, 3, 4}),
+		Attachment:      EncodeBase58(attach),
 		Timestamp:       uint64(time.Now().UnixNano() / int64(time.Millisecond)),
 	}
 
